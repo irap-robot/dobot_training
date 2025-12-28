@@ -4,6 +4,9 @@ import os
 import numpy as np 
 import time
 
+# from tensorflow import keras
+# import keras
+
 class Camera() : 
     def __init__(self,video_id):
         self.video_id = video_id 
@@ -60,12 +63,15 @@ class arucoProjection() :
 
     def __init__(self,video_id):
         self.camera = Camera(video_id)
-        self.pts_workspace = np.array([[0.    ,0.21 ],
-                                       [0.187  ,0.21 ],
+        self.pts_workspace = np.array([[0.    ,0.20 ],
+                                       [0.18  ,0.20 ],
                                        [0.    ,0.   ],
-                                       [0.187  ,0.0  ]])
+                                       [0.18  ,0.0  ]])
         
+        self.offset = np.array([0.097,-0.00])
         self.resolution = 2000
+        # self.model = keras.models.load_model("can_classification_model.keras")
+        # self.class_list = ['cube', 'plain']
 
     def get_image(self) : 
         if self.camera.image is not None : 
@@ -131,11 +137,16 @@ class arucoProjection() :
             if ret : 
                 transformMatrix = self.getTransformMatrix(rvec,tvec)
 
-                top_left_transform = self.relativeTransform([0,0,0],[0.10,0.105,0.0])
-                top_right_transform = self.relativeTransform([0,0,0],[0.10,0.285,0.0])
-                bottom_left_transform = self.relativeTransform([0,0,0],[-0.105,0.105,0.0])
-                bottom_right_transform = self.relativeTransform([0,0,0],[-0.105,0.285,0.0])
-                center_transform = self.relativeTransform([0,0,0],[-0.0025,0.19,0])
+                workspace_pts = np.copy(self.pts_workspace) 
+                workspace_pts[:,0] = workspace_pts[:,0] + self.offset[0]
+                workspace_pts[:,1] = workspace_pts[:,1] + self.offset[1]
+                top_left_transform = self.relativeTransform([0,0,0],[workspace_pts[0,0],workspace_pts[0,1],0.0])
+                top_right_transform = self.relativeTransform([0,0,0],[workspace_pts[1,0],workspace_pts[1,1],0.0])
+                bottom_left_transform = self.relativeTransform([0,0,0],[workspace_pts[2,0],workspace_pts[2,1],0.0])
+                bottom_right_transform = self.relativeTransform([0,0,0],[workspace_pts[3,0],workspace_pts[3,1],0.0])
+                center_transform = self.relativeTransform([0,0,0],[(workspace_pts[1,0]+workspace_pts[2,0])/2,(workspace_pts[1,1]+workspace_pts[2,1])/2,0])
+                # top_left_transform = np.array([self.pts_workspace[0,0],self.pts_workspace[0,1],0.])
+                # print(top_right_transform)
                 
                 top_left_transform = np.matmul(transformMatrix,top_left_transform)
                 top_right_transform = np.matmul(transformMatrix,top_right_transform)
@@ -155,7 +166,7 @@ class arucoProjection() :
                 img_with_marker_board = cv2.drawFrameAxes(img_with_marker_board, camera_matrix, distortion_coefficients, bottom_right_transform[:3,:3], bottom_right_transform[:3,3:], 0.05) # BOTTOM RIGHT
                 img_with_marker_board = cv2.drawFrameAxes(img_with_marker_board, camera_matrix, distortion_coefficients, center_transform[:3,:3],center_transform[:3,3:],0.05) # CENTER
                 
-                img_with_marker_board = cv2.drawFrameAxes(img_with_marker_board, camera_matrix, distortion_coefficients, rvec, tvec, 0.05)
+                # img_with_marker_board = cv2.drawFrameAxes(img_with_marker_board, camera_matrix, distortion_coefficients, rvec, tvec, 0.05)
 
                 projection_points = np.array([top_left_point[0,0],
                                               top_right_point[0,0],
@@ -229,3 +240,20 @@ class arucoProjection() :
     
     def wait_camera_open(self) : 
         self.camera.wait_camera_open()
+
+    # def predict_from_model(self,image) :
+    #     predict_image = image.copy()
+    #     resized_img = cv2.resize(predict_image, (320, 320))
+    #     # print(resized_img.shape)
+    #     img_norm = resized_img / 255.0
+    #     img_norm = np.expand_dims(img_norm, axis=0)
+
+    #     predictions = self.model.predict(img_norm)
+    #     predicted_class = np.argmax(predictions)
+
+    #     cv2.putText(predict_image, f"Predicted: {self.class_list[predicted_class]}", (10, 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (50,50,50), 2)
+
+    #     print(f"Predicted Class: {self.class_list[predicted_class]}")
+    #     print(f"Confidence Scores: {predictions[0]}") 
+
+    #     return predict_image, self.class_list[predicted_class]

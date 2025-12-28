@@ -2,13 +2,14 @@ from DobotDriver import DobotDriver
 from ImageProc import arucoProjection
 import cv2 
 
-
 dobot_arm = DobotDriver()
-cam = arucoProjection(2)
+cam = arucoProjection(0)
 
 while True : 
 
     projection_image ,marker_image = cam.get_projection_image()
+    (w,h,_) = projection_image.shape
+    projection_image =  cv2.circle(projection_image,(int(h/2),int(w/2)),10,(0,0,255),-1)
 
     cv2.imshow('projection', projection_image) 
     cv2.imshow('marker', marker_image) 

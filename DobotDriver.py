@@ -10,13 +10,15 @@ class DobotDriver() :
         self.dobot.speed(50,50)
 
         self.marker_transformation = self.read_marker_transformation()
-        # print(self.marker_transformation)
-        self.center_translation = np.array([-0.1025,-0.09,0.0]) # from center to origin 
-        self.center_transformation = np.eye(4,dtype=np.float32)
-        self.center_transformation[:3,3] = self.center_translation
-        self.offset_transformation = np.matmul(self.marker_transformation,self.center_transformation)
-        # print(self.offset_transformation)
-        # print(self.marker_transformation)
+       
+        # from center to origin
+        # note translation change depend on workspace size in ImageProc.py 
+        self.tf_center2board = np.array([[-1., 0. ,0. ,0.10], 
+                                         [ 0.,-1. ,0. ,0.09],
+                                         [ 0., 0. ,1. ,0.  ],
+                                         [ 0., 0. ,0. ,1.  ]])
+        
+        self.tf_robot2board = np.matmul(self.marker_transformation,self.tf_center2board)
 
     def get_endEffectorPose(self) : 
         pose = self.dobot.get_pose()
@@ -38,7 +40,7 @@ class DobotDriver() :
     def move_on_marker_coordinate(self,x,y,z,r,wait=False) :
         goal_pts = np.array([x,y,0,1])
 
-        goal_pts = np.matmul(self.offset_transformation,goal_pts)
+        goal_pts = np.matmul(self.tf_robot2board,goal_pts)
         self.move_on_robot_coordinate(goal_pts[0],goal_pts[1],z,r,wait=wait)
         # print(goal_pts[:3])
         
@@ -94,7 +96,7 @@ class DobotDriver() :
 
         with open(f"{main_dir}/config/marker_transformation.txt","w") as file :
             file.write(f"1.0  0.0  0.0 {position[0]}\n")
-            file.write(f"0.0 -1.0  0.0 {position[1]}\n")
-            file.write(f"0.0  0.0 -1.0 {position[2]}\n")
+            file.write(f"0.0  1.0  0.0 {position[1]}\n")
+            file.write(f"0.0  0.0  1.0 {position[2]}\n")
             file.write(f"0.0  0.0  0.0 1.0\n")     
             file.close()
